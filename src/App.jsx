@@ -118,7 +118,8 @@ const LandingPage = ({ navigate, showSMS, showEmail }) => {
     name: '',
     phone: '',
     role: 'customer',
-    confirmPassword: ''
+    confirmPassword: '',
+    vehicleType: 'motorcycle'
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -261,6 +262,18 @@ const LandingPage = ({ navigate, showSMS, showEmail }) => {
             <option value="rider">Rider</option>
             <option value="admin">Admin</option>
           </select>
+
+                  {!isLogin && formData.role === 'rider' && (
+          <select
+            value={formData.vehicleType}
+            onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value })}
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+          >
+            <option value="motorcycle">🏍️ Motorcycle</option>
+            <option value="bike">🚴 Bike</option>
+            <option value="car">🚗 Car</option>
+          </select>
+        )}
 
           {error && (
             <div className="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm">
