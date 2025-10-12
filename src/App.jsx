@@ -263,17 +263,17 @@ const LandingPage = ({ navigate, showSMS, showEmail }) => {
             <option value="admin">Admin</option>
           </select>
 
-                  {!isLogin && formData.role === 'rider' && (
-          <select
-            value={formData.vehicleType}
-            onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value })}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-          >
-            <option value="motorcycle">🏍️ Motorcycle</option>
-            <option value="bike">🚴 Bike</option>
-            <option value="car">🚗 Car</option>
-          </select>
-        )}
+          {!isLogin && formData.role === 'rider' && (
+            <select
+              value={formData.vehicleType}
+              onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value })}
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            >
+              <option value="motorcycle">🏍️ Motorcycle</option>
+              <option value="bike">🚴 Bike</option>
+              <option value="car">🚗 Car</option>
+            </select>
+          )}
 
           {error && (
             <div className="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm">
@@ -331,9 +331,13 @@ const CustomerDashboard = ({ user, token, handleLogout, showSMS, showEmail }) =>
     try {
       const res = await fetch(`${API_URL}/menu`);
       const data = await res.json();
-      if (data.success) setMenuItems(data.data.menuItems);
+      if (data.success) {
+        setMenuItems(data.data.menuItems);
+        console.log('Fetched menu items:', data.data.menuItems.length);
+      }
     } catch (err) {
-      console.error('Failed to fetch menu');
+      console.error('Failed to fetch menu:', err);
+      setError('Failed to fetch menu');
     }
   };
 
@@ -470,18 +474,27 @@ const CustomerDashboard = ({ user, token, handleLogout, showSMS, showEmail }) =>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredMenuItems.map(item => (
-                  <div key={item._id} className="bg-white rounded-xl shadow-md p-4 hover:shadow-lg transition">
-                    <h3 className="font-bold text-lg">{item.name}</h3>
-                    <p className="text-sm text-gray-600 mb-3">{item.description}</p>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xl font-bold text-blue-600">${item.price.toFixed(2)}</span>
-                      <button onClick={() => addToCart(item)} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
-                        Add
-                      </button>
-                    </div>
+                {filteredMenuItems.length === 0 ? (
+                  <div className="col-span-full bg-white rounded-xl shadow-md p-12 text-center">
+                    <Package className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+                    <p className="text-gray-600 mb-2">No menu items available in this category</p>
+                    <p className="text-sm text-gray-500">Please check back later or try another category</p>
                   </div>
-                ))}
+                ) : (
+                  filteredMenuItems.map(item => (
+                    <div key={item._id} className="bg-white rounded-xl shadow-md p-4 hover:shadow-lg transition">
+                      <h3 className="font-bold text-lg">{item.name}</h3>
+                      <p className="text-xs text-gray-500 mb-1">{item.restaurant}</p>
+                      <p className="text-sm text-gray-600 mb-3">{item.description}</p>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xl font-bold text-blue-600">${item.price.toFixed(2)}</span>
+                        <button onClick={() => addToCart(item)} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                          Add
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
@@ -895,18 +908,23 @@ const AdminDashboard = ({ user, token, handleLogout }) => {
     try {
       const res = await fetch(`${API_URL}/menu`);
       const data = await res.json();
-      if (data.success) setMenuItems(data.data.menuItems);
+      if (data.success) {
+        setMenuItems(data.data.menuItems);
+        console.log('Fetched menu items:', data.data.menuItems.length);
+      }
     } catch (err) {
+      console.error('Failed to fetch menu:', err);
       setError('Failed to fetch menu');
     }
   };
 
   const createMenuItem = async () => {
-    if (!newMenuItem.name || !newMenuItem.price) {
-      setError('Please fill required fields');
+    if (!newMenuItem.name || !newMenuItem.price || !newMenuItem.restaurant) {
+      setError('Please fill required fields (Name, Price, Restaurant)');
       return;
     }
 
+    setLoading(true);
     try {
       const res = await fetch(`${API_URL}/menu`, {
         method: 'POST',
@@ -920,12 +938,64 @@ const AdminDashboard = ({ user, token, handleLogout }) => {
         })
       });
 
-      if (res.ok) {
+      const data = await res.json();
+      if (data.success || res.ok) {
         setNewMenuItem({ name: '', description: '', price: '', category: 'Burgers', restaurant: '', preparationTime: 15 });
-        fetchMenuItems();
+        setError('');
+        await fetchMenuItems();
+      } else {
+        setError(data.message || 'Failed to create item');
       }
     } catch (err) {
       setError('Failed to create item');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addSampleMenuItems = async () => {
+    if (!window.confirm('Add sample menu items? This will add 12 items to your menu.')) return;
+    
+    setLoading(true);
+    const sampleItems = [
+      { name: 'Classic Burger', description: 'Beef patty with lettuce, tomato, onion', price: 8.99, category: 'Burgers', restaurant: 'Burger Palace' },
+      { name: 'Cheeseburger Deluxe', description: 'Double beef patty with cheddar cheese', price: 10.99, category: 'Burgers', restaurant: 'Burger Palace' },
+      { name: 'Pepperoni Pizza', description: 'Classic pepperoni with mozzarella', price: 12.99, category: 'Pizza', restaurant: 'Pizza House' },
+      { name: 'Margherita Pizza', description: 'Fresh tomato, basil, and mozzarella', price: 11.99, category: 'Pizza', restaurant: 'Pizza House' },
+      { name: 'Caesar Salad', description: 'Romaine lettuce with parmesan and croutons', price: 7.99, category: 'Salads', restaurant: 'Green Bites' },
+      { name: 'Sushi Roll Combo', description: 'California and Spicy Tuna rolls', price: 15.99, category: 'Japanese', restaurant: 'Tokyo Express' },
+      { name: 'Chicken Tacos', description: '3 soft tacos with grilled chicken', price: 9.99, category: 'Mexican', restaurant: 'Taco Time' },
+      { name: 'Spaghetti Carbonara', description: 'Creamy pasta with bacon and parmesan', price: 13.99, category: 'Pasta', restaurant: 'Italian Kitchen' },
+      { name: 'Chocolate Cake', description: 'Rich chocolate layer cake', price: 5.99, category: 'Desserts', restaurant: 'Sweet Treats' },
+      { name: 'Iced Coffee', description: 'Cold brew with your choice of milk', price: 4.99, category: 'Beverages', restaurant: 'Coffee Corner' },
+      { name: 'Chicken Wings', description: '8 pieces with your choice of sauce', price: 11.99, category: 'Appetizers', restaurant: 'Wing Stop' },
+      { name: 'Fish and Chips', description: 'Beer battered cod with fries', price: 14.99, category: 'Appetizers', restaurant: 'Seaside Grill' }
+    ];
+
+    try {
+      let added = 0;
+      for (const item of sampleItems) {
+        try {
+          const res = await fetch(`${API_URL}/menu`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify(item)
+          });
+          if (res.ok) added++;
+        } catch (err) {
+          console.error('Failed to add item:', item.name);
+        }
+      }
+      await fetchMenuItems();
+      setError('');
+      alert(`Successfully added ${added} sample menu items!`);
+    } catch (err) {
+      setError('Failed to add sample items');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1074,30 +1144,53 @@ const AdminDashboard = ({ user, token, handleLogout }) => {
 
         {activeTab === 'menu' && (
           <div>
-            <h2 className="text-2xl font-bold mb-6">Menu Management</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Menu Management</h2>
+              {menuItems.length === 0 && (
+                <button
+                  onClick={addSampleMenuItems}
+                  disabled={loading}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50"
+                >
+                  {loading ? 'Adding...' : '+ Add Sample Items'}
+                </button>
+              )}
+            </div>
             <div className="bg-white rounded-xl shadow-md p-6 mb-6">
               <h3 className="font-bold text-lg mb-4">Add New Menu Item</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input
                   type="text"
-                  placeholder="Item Name"
+                  placeholder="Item Name *"
                   value={newMenuItem.name}
                   onChange={(e) => setNewMenuItem({...newMenuItem, name: e.target.value})}
                   className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
                 />
                 <input
                   type="number"
-                  placeholder="Price"
+                  step="0.01"
+                  placeholder="Price *"
                   value={newMenuItem.price}
                   onChange={(e) => setNewMenuItem({...newMenuItem, price: e.target.value})}
                   className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
                 />
                 <input
                   type="text"
-                  placeholder="Description"
+                  placeholder="Description *"
                   value={newMenuItem.description}
                   onChange={(e) => setNewMenuItem({...newMenuItem, description: e.target.value})}
                   className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent md:col-span-2"
+                  required
+                />
+                <input
+                  type="text"
+                  placeholder="Restaurant Name *"
+                  value={newMenuItem.restaurant}
+                  onChange={(e) => setNewMenuItem({...newMenuItem, restaurant: e.target.value})}
+                  className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
                 />
                 <select
                   value={newMenuItem.category}
@@ -1107,40 +1200,53 @@ const AdminDashboard = ({ user, token, handleLogout }) => {
                   <option value="Burgers">Burgers</option>
                   <option value="Pizza">Pizza</option>
                   <option value="Pasta">Pasta</option>
-                  <option value="Drinks">Drinks</option>
+                  <option value="Appetizers">Appetizers</option>
+                  <option value="Salads">Salads</option>
+                  <option value="Japanese">Japanese</option>
+                  <option value="Mexican">Mexican</option>
                   <option value="Desserts">Desserts</option>
+                  <option value="Beverages">Beverages</option>
                 </select>
                 <button 
-                  onClick={createMenuItem} 
-                  className="bg-blue-600 text-white py-2 px-6 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center space-x-2"
+                  onClick={createMenuItem}
+                  disabled={loading}
+                  className="bg-blue-600 text-white py-2 px-6 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center space-x-2 disabled:opacity-50"
                 >
                   <Plus className="w-5 h-5" />
-                  <span>Add Item</span>
+                  <span>{loading ? 'Adding...' : 'Add Item'}</span>
                 </button>
               </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {menuItems.map(item => (
-                <div key={item._id} className="bg-white rounded-xl shadow-md p-4 hover:shadow-lg transition">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h3 className="font-bold text-lg">{item.name}</h3>
-                      <p className="text-sm text-gray-600 mt-1">{item.description}</p>
-                      <span className="inline-block mt-2 px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
-                        {item.category}
-                      </span>
-                      <p className="text-xl font-bold text-blue-600 mt-2">${item.price.toFixed(2)}</p>
-                    </div>
-                    <button 
-                      onClick={() => deleteMenuItem(item._id)} 
-                      className="text-red-600 hover:text-red-800 p-2"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
+              {menuItems.length === 0 ? (
+                <div className="col-span-full bg-white rounded-xl shadow-md p-12 text-center">
+                  <ShoppingBag className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+                  <p className="text-gray-600 mb-4">No menu items yet. Add some items to get started!</p>
                 </div>
-              ))}
+              ) : (
+                menuItems.map(item => (
+                  <div key={item._id} className="bg-white rounded-xl shadow-md p-4 hover:shadow-lg transition">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h3 className="font-bold text-lg">{item.name}</h3>
+                        <p className="text-sm text-gray-600 mt-1">{item.description}</p>
+                        <p className="text-xs text-gray-500 mt-1">{item.restaurant}</p>
+                        <span className="inline-block mt-2 px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
+                          {item.category}
+                        </span>
+                        <p className="text-xl font-bold text-blue-600 mt-2">${item.price.toFixed(2)}</p>
+                      </div>
+                      <button 
+                        onClick={() => deleteMenuItem(item._id)} 
+                        className="text-red-600 hover:text-red-800 p-2"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
